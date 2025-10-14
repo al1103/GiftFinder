@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loading...</title>
+    <link rel="stylesheet" href="./assets/styles.css" />
+    <style>
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      }
+      
+      .tracker-container {
+        background: white;
+        border-radius: 16px;
+        padding: 40px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        text-align: center;
+        max-width: 500px;
+        width: 90%;
+      }
+      
+      .spinner {
+        border: 4px solid rgba(102, 126, 234, 0.2);
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      h1 {
+        color: #333;
+        font-size: 24px;
+        margin: 0 0 10px 0;
+      }
+      
+      p {
+        color: #666;
+        font-size: 14px;
+        margin: 0;
+      }
+      
+      .success {
+        color: #10b981;
+      }
+      
+      .error {
+        color: #ef4444;
+      }
+      
+      .info-grid {
+        margin-top: 30px;
+        text-align: left;
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 20px;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      
+      .info-item {
+        margin: 8px 0;
+        word-break: break-word;
+      }
+      
+      .info-label {
+        font-weight: 600;
+        color: #667eea;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tracker-container">
+      <div class="spinner"></div>
+      <h1>Đang thu thập thông tin...</h1>
+      <p id="status-text">Vui lòng đợi trong giây lát</p>
+      <div id="info-display" class="info-grid" style="display: none;"></div>
+    </div>
+
+    <script type="module" src="./assets/tracker.js"></script>
+  </body>
+</html>
