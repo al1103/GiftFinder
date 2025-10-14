@@ -1,74 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GiftFinder</title>
-    <link rel="stylesheet" href="./assets/styles.css" />
+    <title>Zilong</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #000;
+        overflow: hidden;
+      }
+      
+      .zilong {
+        font-size: 10rem;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+        color: #fff;
+        text-transform: uppercase;
+        animation: blink 1s infinite;
+      }
+      
+      @keyframes blink {
+        0%, 49% {
+          opacity: 1;
+        }
+        50%, 100% {
+          opacity: 0;
+        }
+      }
+    </style>
   </head>
   <body>
-    <main class="app-shell">
-      <header class="hero">
-        <h1>GiftFinder</h1>
-        <p>Share recipient details and send them straight to your Telegram workspace.</p>
-      </header>
-
-      <form id="gift-form" class="card" autocomplete="off">
-        <div class="field">
-          <label for="sender-name">Your name</label>
-          <input id="sender-name" name="senderName" type="text" placeholder="Alex" required />
-        </div>
-
-        <div class="field">
-          <label for="recipient-name">Recipient name</label>
-          <input id="recipient-name" name="recipientName" type="text" placeholder="Jamie" required />
-        </div>
-
-        <div class="field">
-          <label for="relationship">Relationship</label>
-          <input id="relationship" name="relationship" type="text" placeholder="Friend, colleague, sibling..." required />
-        </div>
-
-        <div class="field">
-          <label for="occasion">Occasion</label>
-          <input id="occasion" name="occasion" type="text" placeholder="Birthday, anniversary, graduation..." required />
-        </div>
-
-        <div class="field field--inline">
-          <label for="budget">Budget</label>
-          <div class="field__budget">
-            <span class="field__currency">$</span>
-            <input id="budget" name="budget" type="number" min="0" step="1" placeholder="75" required />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="interests">Recipient interests</label>
-          <textarea id="interests" name="interests" rows="3" placeholder="Cooking, hiking, indie films..." required></textarea>
-        </div>
-
-        <div class="field">
-          <label for="age-range">Age range (optional)</label>
-          <input id="age-range" name="ageRange" type="text" placeholder="25-30" />
-        </div>
-
-        <div class="field">
-          <label for="notes">Additional notes (optional)</label>
-          <textarea id="notes" name="notes" rows="3" placeholder="Prefers sustainable brands."></textarea>
-        </div>
-
-        <button type="submit" class="btn-primary">Send to Telegram</button>
-      </form>
-
-      <p id="status-message" role="status" aria-live="polite" class="status"></p>
-    </main>
-
-    <footer class="footer">
-      <p>
-        Update <code>config.js</code> with your Telegram bot token and chat ID to enable messaging.
-      </p>
-    </footer>
-
-    <script type="module" src="./assets/app.js"></script>
+    <div class="zilong">Zilong</div>
   </body>
 </html>
