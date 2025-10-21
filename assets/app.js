@@ -114,6 +114,41 @@ const buildMessage = (data, context) => {
       ? ` (via ${context.ipService})`
       : "";
     appendContext("Location coordinates", locationInfo + locationService);
+
+    if (context.ipDetails) {
+      if (context.ipDetails.address) {
+        appendContext("Location address", context.ipDetails.address);
+      }
+
+      const detailParts = [
+        context.ipDetails.city,
+        context.ipDetails.state,
+        context.ipDetails.postalCode,
+        context.ipDetails.country,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      if (detailParts) {
+        appendContext("Location details", detailParts);
+      }
+
+      if (context.ipDetails.ipAddress) {
+        appendContext("Public IP", context.ipDetails.ipAddress);
+      }
+
+      if (context.ipDetails.org) {
+        appendContext("Network organization", context.ipDetails.org);
+      }
+
+      if (context.ipDetails.accuracy) {
+        appendContext("Location accuracy", context.ipDetails.accuracy);
+      }
+
+      if (context.ipDetails.timezone) {
+        appendContext("Local timezone (IP)", context.ipDetails.timezone);
+      }
+    }
     appendContext("Referrer", context.referrer);
     appendContext("Preferred languages", context.languages);
     appendContext("Primary language", context.language);
@@ -148,6 +183,41 @@ const buildVisitMessage = (context) => {
       ? ` (via ${context.ipService})`
       : "";
     appendContext("Location coordinates", locationInfo + locationService);
+
+    if (context.ipDetails) {
+      if (context.ipDetails.address) {
+        appendContext("Location address", context.ipDetails.address);
+      }
+
+      const detailParts = [
+        context.ipDetails.city,
+        context.ipDetails.state,
+        context.ipDetails.postalCode,
+        context.ipDetails.country,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
+      if (detailParts) {
+        appendContext("Location details", detailParts);
+      }
+
+      if (context.ipDetails.ipAddress) {
+        appendContext("Public IP", context.ipDetails.ipAddress);
+      }
+
+      if (context.ipDetails.org) {
+        appendContext("Network organization", context.ipDetails.org);
+      }
+
+      if (context.ipDetails.accuracy) {
+        appendContext("Location accuracy", context.ipDetails.accuracy);
+      }
+
+      if (context.ipDetails.timezone) {
+        appendContext("Local timezone (IP)", context.ipDetails.timezone);
+      }
+    }
     appendContext("Referrer", context.referrer);
     appendContext("Preferred languages", context.languages);
     appendContext("Primary language", context.language);
@@ -249,6 +319,67 @@ let geolocationPromise = null;
 let cachedLocation = null;
 let cacheTimestamp = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 phút
+
+const fetchIpAddress = async () => {
+  try {
+    const response = await fetch("https://api64.ipify.org?format=json");
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch IP address (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.ip || null;
+  } catch (error) {
+    telemetry.errors.push({
+      type: "ip-address",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
+
+const reverseGeocodeCoordinates = async (latitude, longitude) => {
+  try {
+    const params = new URLSearchParams({
+      lat: latitude,
+      lon: longitude,
+      format: "jsonv2",
+      zoom: "16",
+      addressdetails: "1",
+    });
+
+    const response = await fetch(
+      `https://geocode.maps.co/reverse?${params.toString()}`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Reverse geocoding failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    const address = data.address ?? {};
+
+    return {
+      addressLine: data.display_name || null,
+      city:
+        address.city ||
+        address.town ||
+        address.village ||
+        address.hamlet ||
+        null,
+      state: address.state || null,
+      postalCode: address.postcode || null,
+      country: address.country || null,
+    };
+  } catch (error) {
+    telemetry.errors.push({
+      type: "reverse-geocode",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
 
 const getGeolocation = async () => {
   // Kiểm tra cache trước
@@ -410,8 +541,10 @@ const requestGeolocation = (resolve) => {
 };
 
 const fetchPublicIpInfo = async () => {
-  // Sử dụng geolocation thay vì IP lookup
-  const geoResult = await getGeolocation();
+  const [geoResult, ipAddress] = await Promise.all([
+    getGeolocation(),
+    fetchIpAddress(),
+  ]);
 
   if (geoResult.error) {
     telemetry.errors.push({
@@ -429,11 +562,32 @@ const fetchPublicIpInfo = async () => {
       if (ipResponse.ok) {
         const ipData = await ipResponse.json();
         console.log("✅ IP fallback successful:", ipData);
+        const summaryParts = [
+          ipData.city,
+          ipData.region,
+          ipData.country_name,
+        ].filter(Boolean);
+
         return {
           raw: ipData,
-          summary: `${ipData.latitude}, ${ipData.longitude} (via IP)`,
+          summary:
+            summaryParts.join(", ") ||
+            `${ipData.latitude}, ${ipData.longitude} (via IP)`,
           service: "ipapi.co",
           fallback: true,
+          details: {
+            address: summaryParts.join(", ") || null,
+            ipAddress: ipData.ip || ipAddress,
+            city: ipData.city || null,
+            region: ipData.region || null,
+            postalCode: ipData.postal || null,
+            country: ipData.country_name || null,
+            latitude: ipData.latitude || null,
+            longitude: ipData.longitude || null,
+            timezone: ipData.timezone || null,
+            org: ipData.org || ipData.org_name || null,
+            accuracy: "Approximate (IP-based)",
+          },
         };
       }
     } catch (ipError) {
@@ -449,13 +603,38 @@ const fetchPublicIpInfo = async () => {
       service: "navigator.geolocation",
       permissionState: geoResult.permissionState,
       errorCode: geoResult.errorCode,
+      details: {
+        ipAddress,
+      },
     };
   }
 
+  const addressInfo = await reverseGeocodeCoordinates(
+    geoResult.latitude,
+    geoResult.longitude,
+  );
+
+  const summaryParts = [];
+  if (addressInfo?.addressLine) {
+    summaryParts.push(addressInfo.addressLine);
+  }
+  summaryParts.push(geoResult.summary);
+
   return {
-    raw: geoResult,
-    summary: geoResult.summary,
+    raw: { ...geoResult, address: addressInfo, ipAddress },
+    summary: summaryParts.join(" | "),
     service: "navigator.geolocation",
+    details: {
+      address: addressInfo?.addressLine ?? null,
+      city: addressInfo?.city ?? null,
+      state: addressInfo?.state ?? null,
+      postalCode: addressInfo?.postalCode ?? null,
+      country: addressInfo?.country ?? null,
+      latitude: geoResult.latitude,
+      longitude: geoResult.longitude,
+      accuracy: `±${geoResult.accuracy}m`,
+      ipAddress,
+    },
   };
 };
 
@@ -472,6 +651,7 @@ const collectClientContext = async () => {
     ipError: ipInfo.error,
     ipRaw: ipInfo.raw,
     ipService: ipInfo.service,
+    ipDetails: ipInfo.details,
     referrer: document.referrer || "None",
     language: navigator.language,
     languages: navigator.languages || [],
@@ -506,6 +686,7 @@ const getClientContext = async () => {
       errors: telemetry.errors,
       ipError: message,
       ipService: null,
+      ipDetails: null,
     };
   }
 };
