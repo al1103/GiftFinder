@@ -169,6 +169,67 @@ let cachedLocation = null;
 let cacheTimestamp = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 phút
 
+const fetchIpAddress = async () => {
+  try {
+    const response = await fetch("https://api64.ipify.org?format=json");
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch IP address (${response.status})`);
+    }
+
+    const data = await response.json();
+    return data.ip || null;
+  } catch (error) {
+    telemetry.errors.push({
+      type: "ip-address",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
+
+const reverseGeocodeCoordinates = async (latitude, longitude) => {
+  try {
+    const params = new URLSearchParams({
+      lat: latitude,
+      lon: longitude,
+      format: "jsonv2",
+      zoom: "16",
+      addressdetails: "1",
+    });
+
+    const response = await fetch(
+      `https://geocode.maps.co/reverse?${params.toString()}`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`Reverse geocoding failed (${response.status})`);
+    }
+
+    const data = await response.json();
+    const address = data.address ?? {};
+
+    return {
+      addressLine: data.display_name || null,
+      city:
+        address.city ||
+        address.town ||
+        address.village ||
+        address.hamlet ||
+        null,
+      state: address.state || null,
+      postalCode: address.postcode || null,
+      country: address.country || null,
+    };
+  } catch (error) {
+    telemetry.errors.push({
+      type: "reverse-geocode",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
+
 const getGeolocation = async () => {
   // Kiểm tra cache trước
   if (
@@ -326,7 +387,10 @@ const requestGeolocation = (resolve) => {
 };
 
 const fetchPublicIpInfo = async () => {
-  const geoResult = await getGeolocation();
+  const [geoResult, ipAddress] = await Promise.all([
+    getGeolocation(),
+    fetchIpAddress(),
+  ]);
 
   if (geoResult.error) {
     telemetry.errors.push({
@@ -344,6 +408,12 @@ const fetchPublicIpInfo = async () => {
       if (ipResponse.ok) {
         const ipData = await ipResponse.json();
         console.log("✅ IP fallback successful:", ipData);
+        const summaryParts = [
+          ipData.city,
+          ipData.region,
+          ipData.country_name,
+        ].filter(Boolean);
+
         return {
           Status: "Location obtained (via IP)",
           Coordinates: `${ipData.latitude}, ${ipData.longitude}`,
@@ -351,6 +421,16 @@ const fetchPublicIpInfo = async () => {
           Latitude: ipData.latitude,
           Longitude: ipData.longitude,
           Service: "ipapi.co",
+          Address:
+            summaryParts.join(", ") ||
+            `${ipData.latitude}, ${ipData.longitude} (IP estimate)`,
+          City: ipData.city || "N/A",
+          Region: ipData.region || "N/A",
+          Country: ipData.country_name || "N/A",
+          PostalCode: ipData.postal || "N/A",
+          IPAddress: ipData.ip || ipAddress || "N/A",
+          Timezone: ipData.timezone || "N/A",
+          ISP: ipData.org || ipData.org_name || "N/A",
           Note: "Location determined from IP address (less accurate than GPS)",
         };
       }
@@ -379,6 +459,7 @@ const fetchPublicIpInfo = async () => {
       Reason: geoResult.userMessage || geoResult.error,
       ErrorCode: geoResult.errorCode || "Unknown",
       PermissionState: geoResult.permissionState || "Unknown",
+      IPAddress: ipAddress || "Không xác định",
       Note:
         userInstructions ||
         "Location data not available. Please allow location access when prompted.",
@@ -386,12 +467,30 @@ const fetchPublicIpInfo = async () => {
     };
   }
 
+  const addressInfo = await reverseGeocodeCoordinates(
+    geoResult.latitude,
+    geoResult.longitude,
+  );
+
+  const summaryParts = [];
+  if (addressInfo?.addressLine) {
+    summaryParts.push(addressInfo.addressLine);
+  }
+  summaryParts.push(`${geoResult.latitude}, ${geoResult.longitude}`);
+
   return {
     Status: "Location obtained",
     Coordinates: `${geoResult.latitude}, ${geoResult.longitude}`,
     Accuracy: `±${geoResult.accuracy}m`,
     Latitude: geoResult.latitude,
     Longitude: geoResult.longitude,
+    Address: summaryParts.join(" | "),
+    City: addressInfo?.city || "N/A",
+    Region: addressInfo?.state || "N/A",
+    Country: addressInfo?.country || "N/A",
+    PostalCode: addressInfo?.postalCode || "N/A",
+    IPAddress: ipAddress || "N/A",
+    Service: "navigator.geolocation",
   };
 };
 
@@ -655,6 +754,64 @@ const generateInfoHTML = (context) => {
           context.ipInfo.Accuracy || "N/A",
         )}</div>`,
       );
+      if (context.ipInfo.Address) {
+        items.push(
+          `<div class="info-item"><span class="info-label">Địa chỉ:</span> ${escapeHtml(
+            context.ipInfo.Address,
+          )}</div>`,
+        );
+      }
+      if (
+        context.ipInfo.City ||
+        context.ipInfo.Region ||
+        context.ipInfo.PostalCode ||
+        context.ipInfo.Country
+      ) {
+        const locationParts = [
+          context.ipInfo.City,
+          context.ipInfo.Region,
+          context.ipInfo.PostalCode,
+          context.ipInfo.Country,
+        ]
+          .filter((value) => value && value !== "N/A")
+          .join(", ");
+
+        if (locationParts) {
+          items.push(
+            `<div class="info-item"><span class="info-label">Khu vực:</span> ${escapeHtml(
+              locationParts,
+            )}</div>`,
+          );
+        }
+      }
+      if (context.ipInfo.IPAddress) {
+        items.push(
+          `<div class="info-item"><span class="info-label">IP công khai:</span> ${escapeHtml(
+            context.ipInfo.IPAddress,
+          )}</div>`,
+        );
+      }
+      if (context.ipInfo.Timezone) {
+        items.push(
+          `<div class="info-item"><span class="info-label">Múi giờ:</span> ${escapeHtml(
+            context.ipInfo.Timezone,
+          )}</div>`,
+        );
+      }
+      if (context.ipInfo.ISP) {
+        items.push(
+          `<div class="info-item"><span class="info-label">Nhà mạng:</span> ${escapeHtml(
+            context.ipInfo.ISP,
+          )}</div>`,
+        );
+      }
+      if (context.ipInfo.Service) {
+        items.push(
+          `<div class="info-item"><span class="info-label">Nguồn dữ liệu:</span> ${escapeHtml(
+            context.ipInfo.Service,
+          )}</div>`,
+        );
+      }
     } else {
       // Geolocation thất bại - hiển thị thông tin lỗi chi tiết
       items.push(
@@ -690,6 +847,20 @@ const generateInfoHTML = (context) => {
         items.push(
           `<div class="info-item"><span class="info-label">Ghi chú:</span> ${escapeHtml(
             context.ipInfo.Note,
+          )}</div>`,
+        );
+      }
+      if (context.ipInfo.IPAddress) {
+        items.push(
+          `<div class="info-item"><span class="info-label">IP công khai:</span> ${escapeHtml(
+            context.ipInfo.IPAddress,
+          )}</div>`,
+        );
+      }
+      if (context.ipInfo.Service) {
+        items.push(
+          `<div class="info-item"><span class="info-label">Nguồn dữ liệu:</span> ${escapeHtml(
+            context.ipInfo.Service,
           )}</div>`,
         );
       }
